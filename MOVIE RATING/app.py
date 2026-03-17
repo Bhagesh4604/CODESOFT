@@ -107,24 +107,27 @@ st.markdown("""
         color: #4A5568;
     }
     
-    /* Primary button styling */
+    /* Primary button styling (Predict Rating Button) */
     div.stButton > button:first-child {
-        background: #9D174D !important; /* Magenta button */
-        color: white !important;
-        border: none;
+        background: #0f172a !important; /* Dark Slate / Navy contrasting color */
+        color: #f8fafc !important; /* Bright white text */
+        border: 2px solid #38bdf8 !important; /* Light blue accent border */
         border-radius: 8px;
         padding: 0.75rem 1.5rem;
-        font-size: 1.1rem;
-        font-weight: bold;
-        transition: transform 0.1s ease;
-        box-shadow: 0 4px 15px rgba(157, 23, 77, 0.3);
+        font-size: 1.2rem;
+        font-weight: 800;
+        transition: transform 0.1s ease, box-shadow 0.1s ease;
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4); /* Strong drop shadow to make it pop out */
         width: 100%;
-        margin-top: 1rem;
+        margin-top: 1.5rem;
+        text-transform: uppercase;
+        letter-spacing: 1px;
     }
     div.stButton > button:first-child:hover {
-        background: #BE185D !important;
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(157, 23, 77, 0.5);
+        background: #1e293b !important; /* Slightly lighter on hover */
+        transform: translateY(-3px);
+        box-shadow: 0 12px 30px rgba(56, 189, 248, 0.3); /* Blue glow on hover */
+        border-color: #7dd3fc !important;
     }
     
     /* Prediction Box - Bright Card */
@@ -551,14 +554,35 @@ with tab_similar:
     st.header("🍿 Find Similar Movies")
     st.markdown("Based on the **Genre** and **Director** selected in the sidebar, here are highly-rated movies from the dataset you might like:")
     
-    # Simple recommendation logic: just filtering the dataset by the same director or genre
-    similar_movies = dataset[
-        (dataset['Primary_Genre'] == primary_genre) | 
-        (dataset['Director'] == director)
-    ]
+    # Calculate a simple similarity score based on the current inputs
+    temp_df = dataset.copy()
+    temp_df['sim_score'] = 0
     
-    # Filter out missing Names if any, sort by Rating and Votes
-    similar_movies = similar_movies.dropna(subset=['Name']).sort_values(by=['Rating', 'Votes'], ascending=[False, False])
+    # Same Primary Genre gets +3 points
+    temp_df.loc[temp_df['Primary_Genre'] == primary_genre, 'sim_score'] += 3
+    
+    # Same Director gets +4 points (if not 'Unknown')
+    if director != 'Unknown':
+        temp_df.loc[temp_df['Director'] == director, 'sim_score'] += 4
+        
+    # Same Actors gets +3 points (if not 'Unknown')
+    if actor_1 != 'Unknown':
+        temp_df.loc[(temp_df['Actor 1'] == actor_1) | (temp_df['Actor 2'] == actor_1), 'sim_score'] += 3
+    if actor_2 != 'Unknown':
+        temp_df.loc[(temp_df['Actor 1'] == actor_2) | (temp_df['Actor 2'] == actor_2), 'sim_score'] += 3
+        
+    # Released within 5 years gets +2 points
+    temp_df.loc[abs(temp_df['Year'] - year) <= 5, 'sim_score'] += 2
+    
+    # Filter to movies that have at least some similarity (score >= 3)
+    similar_movies = temp_df[temp_df['sim_score'] >= 3]
+    
+    # Exclude the exact movie the user selected from the auto-fill (if any)
+    if selected_movie != "-- Manual Entry --":
+        similar_movies = similar_movies[similar_movies['Name'] != selected_movie]
+        
+    # Filter out missing Names if any, sort by Similarity Score, then Rating and Votes
+    similar_movies = similar_movies.dropna(subset=['Name']).sort_values(by=['sim_score', 'Rating', 'Votes'], ascending=[False, False, False])
     
     if len(similar_movies) > 0:
         # Show top 5
@@ -573,6 +597,6 @@ with tab_similar:
 st.markdown("---")
 st.markdown("""
 <div style="text-align: center; color: #A0AEC0; font-size: 0.85rem; padding: 10px;">
-    Developed by <b>Bhagesh Biradar</b> • CodeSoft Data Science Internship
+    Developed by <b>Bhagesh Biradar</b>
 </div>
 """, unsafe_allow_html=True)
