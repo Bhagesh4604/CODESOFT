@@ -4,469 +4,538 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import os
 
-# Set up the Streamlit app
-st.set_page_config(page_title="Titanic Predictor", layout="wide")
+# --- PAGE CONFIG ---
+st.set_page_config(
+    page_title="RMS Titanic | Survival Predictor",
+    page_icon="⚓",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
 
+# --- GLOBAL CSS ---
 st.markdown("""
-    <style>
-    /* Dark Ocean Background */
-    .stApp {
-        background: #0b1120;
-        background-image: radial-gradient(circle at top right, #1a2744, #0b1120);
-        color: #e2e8f0;
-    }
-    
-    /* Solid Navy Header */
-    header[data-testid="stHeader"] {
-        background-color: transparent !important;
-    }
-    header[data-testid="stHeader"] * { color: #e2e8f0 !important; }
+<style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    /* Main container */
-    .main .block-container {
-        padding: 0rem 2rem 2rem 2rem;
-        background: transparent;
-        margin-top: 1rem;
+    .stApp {
+        background-color: #f8fafc;
+        font-family: 'Inter', sans-serif;
     }
-    
-    /* Tabs as Floating Pills */
-    div.stTabs [data-baseweb="tab-list"] {
-        gap: 15px;
-        background-color: transparent;
+
+    p, span, div, label {
+        font-size: 1.05rem !important;
+        color: #1e293b !important;
     }
-    div.stTabs [data-baseweb="tab"] {
-        height: 45px;
-        white-space: pre-wrap;
-        background-color: #1e293b;
-        border-radius: 25px !important;
-        padding-left: 1.5rem;
-        padding-right: 1.5rem;
-        color: #94a3b8 !important;
-        border: 1px solid #334155;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    h1, h2, h3 {
+        color: #0f172a !important;
+        font-weight: 800 !important;
     }
-    div.stTabs [data-baseweb="tab"][aria-selected="true"] {
-        background-color: #0ea5e9;
-        color: #ffffff !important;
-        border: none;
+
+    /* Hide Streamlit's default header bar */
+    header[data-testid="stHeader"] { visibility: hidden; height: 0; }
+
+    /* ---- FIXED NAVY HEADER ---- */
+    /* Streamlit wraps its content in .stApp > .appview-container > .main > .block-container
+       We target the topmost element to inject a fixed bar. */
+    .fixed-nav {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        width: 100vw;
+        z-index: 99999;
+        background-color: #001f3f;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.85rem 2.5rem;
+        box-shadow: 0 2px 16px rgba(0,0,0,0.25);
     }
-    
-    /* Typography Overrides */
-    h1, h2, h3 { color: #ffffff !important; font-family: 'Inter', sans-serif; }
-    h4 { color: #ffffff !important; font-size: 1.3rem !important; margin-top: 0.5rem; margin-bottom: 0.2rem; }
-    p, span, div, label { color: #ffffff !important; }
-    
-    /* Inputs */
-    .stNumberInput div[data-baseweb="input"] > div,
-    .stSelectbox div[data-baseweb="select"] > div,
-    .stSlider div[data-baseweb="slider"] {
-        background: #1e293b !important;
-        border: 1px solid #475569 !important;
+    .fixed-nav *, .fixed-nav span, .fixed-nav div, .fixed-nav p, .fixed-nav label {
+        color: white !important;
+        font-size: 1rem !important;
+    }
+    .fixed-nav .nav-brand {
+        font-size: 1.4rem !important;
+        font-weight: 800 !important;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .fixed-nav .nav-badge {
+        background: white;
+        padding: 4px 16px;
         border-radius: 6px;
-        color: white !important;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
-    .stSelectbox div[data-baseweb="select"] span {
-        color: #f8fafc !important;
-        font-weight: 500;
+    .fixed-nav .nav-badge span {
+        color: #001f3f !important;
+        font-weight: 700 !important;
+        font-size: 0.9rem !important;
     }
-    input[type="number"], input[type="text"] {
-        color: #f8fafc !important;
-        font-weight: 500;
+    .fixed-nav .nav-meta {
+        display: flex;
+        align-items: center;
+        gap: 18px;
+        font-size: 0.9rem !important;
+        opacity: 0.9;
     }
-    /* Number input buttons */
-    .stNumberInput button {
-        background: #334155 !important;
-        color: #f8fafc !important;
+    .fixed-nav .nav-circle {
+        background: rgba(255,255,255,0.2);
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+
+    /* Push content down from behind the fixed header */
+    .block-container {
+        padding-top: 4.2rem !important;
+        padding-bottom: 1rem !important;
+    }
+
+    /* Sidebar */
+    [data-testid="stSidebar"] {
+        background-color: #f1f5f9;
+        border-right: 2px solid #e2e8f0;
+        padding-top: 64px;
+    }
+    .sidebar-brand {
+        font-size: 1.4rem !important;
+        font-weight: 800;
+        color: #001f3f !important;
+        border-bottom: 2px solid #cbd5e1;
+        padding-bottom: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    .nav-item {
+        padding: 0.9rem 0;
+        color: #475569 !important;
+        font-size: 1.1rem !important;
+        font-weight: 600;
+    }
+    .nav-item.active {
+        color: #001f3f !important;
+        font-weight: 800;
+        border-left: 4px solid #001f3f;
+        padding-left: 10px;
+    }
+    .nav-divider { height: 2px; background: #cbd5e1; margin: 1.5rem 0; }
+
+    /* Cards */
+    .bi-card {
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);
     }
     
-    /* Button */
-    div.stButton > button:first-child {
-        background: #0ea5e9 !important; /* Ocean Teal */
-        color: white !important;
-        border: none;
-        border-radius: 8px;
-        padding: 0.75rem 1.5rem;
-        font-size: 1.1rem;
-        font-weight: bold;
-        transition: transform 0.1s ease;
-        box-shadow: 0 4px 15px rgba(14, 165, 233, 0.3);
-        width: 100%;
-        margin-top: 1rem;
+    /* Metric Cards */
+    .metric-card {
+        background: #ffffff;
+        border: 2px solid #e2e8f0;
+        border-radius: 12px;
+        padding: 1.5rem;
+        height: 100%;
+        box-shadow: 0 4px 6px -1px rgba(0,0,0,0.04);
     }
-    div.stButton > button:first-child:hover {
-        background: #0284c7 !important;
+    .metric-title {
+        font-size: 0.9rem !important;
+        color: #64748b !important;
+        font-weight: 600 !important;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 0.5rem;
+    }
+    .metric-value {
+        font-size: 2.2rem !important;
+        font-weight: 800 !important;
+        color: #0f172a !important;
+    }
+
+    /* Predict Button */
+    .predict-btn-wrap .stButton > button {
+        background-color: #cc5500 !important;
+        color: white !important;
+        border: none !important;
+        font-weight: 700 !important;
+        font-size: 1.15rem !important;
+        width: 100% !important;
+        padding: 0.85rem 2rem !important;
+        margin-top: 1.5rem;
+        border-radius: 50px !important;
+        box-shadow: 0 4px 10px rgba(204,85,0,0.35);
+        transition: all 0.2s ease;
+    }
+    .predict-btn-wrap .stButton > button:hover {
+        background-color: #a34400 !important;
         transform: translateY(-2px);
     }
 
-    /* Hero Section CSS */
-    .hero-container {
-        display: flex;
-        flex-direction: row;
-        align-items: center;
-        justify-content: space-between;
-        margin-bottom: 2rem;
-        padding: 1rem 0;
+    /* Table */
+    [data-testid="stTable"] { background-color: transparent !important; }
+    [data-testid="stTable"] td, [data-testid="stTable"] th {
+        color: #1e293b !important;
+        font-weight: 500 !important;
+        border-bottom: 1px solid #f1f5f9 !important;
+        font-size: 1rem !important;
     }
-    .hero-title {
-        font-size: 3.5rem;
-        font-weight: 900;
-        color: #f8fafc;
-        line-height: 1.1;
-        letter-spacing: -1px;
-    }
-    .hero-title span { color: #0ea5e9; }
-    .hero-subtitle {
-        font-size: 1.5rem;
-        font-weight: 500;
-        color: #0ea5e9; /* Teal */
-        margin-top: 0.5rem;
+
+    /* Tab Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: transparent;
+        border-bottom: 2px solid #e2e8f0;
         margin-bottom: 1.5rem;
     }
-    .hero-text {
-        font-size: 1.1rem;
-        color: #94a3b8;
-        line-height: 1.6;
-        max-width: 90%;
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.05rem !important;
+        font-weight: 600 !important;
+        color: #64748b !important;
+        padding: 0.6rem 1.5rem !important;
+        border-radius: 8px 8px 0 0 !important;
+        background: transparent !important;
+        border: none !important;
     }
-    
-    /* Oceanic Right Side Graphic */
-    .ocean-graphic-container {
-        position: relative;
-        width: 100%;
-        padding-bottom: 80%; /* rectangle */
-        border-radius: 20px;
-        /* Dramatic dark ocean texture */
-        background-image: url("https://images.unsplash.com/photo-1518837695005-2083093ee35b?q=80&w=1000&auto=format&fit=crop");
-        background-size: cover;
-        background-position: center;
-        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
-        overflow: hidden;
-        border: 2px solid #1e293b;
+    .stTabs [aria-selected="true"] {
+        color: #001f3f !important;
+        background: white !important;
+        border-bottom: 3px solid #001f3f !important;
     }
-    .ocean-graphic-container::after {
-        content: '';
-        position: absolute;
-        top: 0; left: 0; right: 0; bottom: 0;
-        /* Diagonal teal gradient overlay */
-        background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(14, 165, 233, 0.3) 100%);
-        z-index: 1;
-    }
-    .ocean-text {
-        position: absolute;
-        bottom: 20px;
-        right: 20px;
-        font-size: 1.2rem;
-        font-weight: 600;
-        color: #ffffff;
-        text-align: right;
-        z-index: 2;
-        font-style: italic;
-        text-shadow: 0 2px 4px rgba(0,0,0,0.8);
-    }
-    
-    /* Ticket Style Prediction Box */
-    .ticket-box {
-        background: #1e293b;
-        padding: 2rem;
-        border-radius: 12px;
-        text-align: center;
-        border: 1px dashed #334155;
-        border-left: 8px solid #0ea5e9;
-        margin-top: 1rem;
-        margin-bottom: 1rem;
-        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-    }
-    .ticket-value {
-        font-size: 3.5rem;
-        font-weight: 800;
-        margin: 0.5rem 0;
-    }
-    .ticket-survived { color: #10b981 !important; }
-    .ticket-perished { color: #f43f5e !important; }
-    
-    /* Metric Cards */
-    div[data-testid="metric-container"] {
-        background-color: #1a2744;
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid #1e293b;
-        box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
-        border-top: 3px solid #0ea5e9; /* Teal accent */
-    }
-    [data-testid="stMetricValue"] {
-        color: #f8fafc !important;
-        font-size: 1.8rem !important;
-    }
-    </style>
+</style>
 """, unsafe_allow_html=True)
 
-# Load the trained model
-@st.cache_resource
-def load_model():
-    return joblib.load('titanic_survival_model.pkl')
-
-@st.cache_data
-def load_dataset():
-    try:
-        import kagglehub
-        import glob
-        import os
-        path = kagglehub.dataset_download("yasserh/titanic-dataset")
-        csv_files = glob.glob(os.path.join(path, "*.csv"))
-        df = pd.read_csv(csv_files[0])
-        df.columns = [c.lower() for c in df.columns]
-        return df
-    except:
-        return None
-
-model = load_model()
-df = load_dataset()
-
-# --- HERO SECTION ---
-st.markdown("<div class='hero-container'>", unsafe_allow_html=True)
-col_h_left, col_h_right = st.columns([1.2, 1])
-
-with col_h_left:
-    st.markdown("<br>", unsafe_allow_html=True)
-    st.markdown("<div class='hero-title'>Welcome to<br><span>Titanic Survivor</span></div>", unsafe_allow_html=True)
-    st.markdown("<div class='hero-subtitle'>Navigate data, Predict destinies</div>", unsafe_allow_html=True)
-    st.markdown("""
-<div class='hero-text'>
-    Discover the definitive tool for evaluating historical passenger survival probabilities on the RMS Titanic.
-    <br><br>
-    Uncover insights hidden in the depths of historical data. Here, your analytical curiosity meets powerful modeling to reveal the true factors behind nautical survival.
-</div>
-    """, unsafe_allow_html=True)
-
-with col_h_right:
-    st.markdown("""
-<div class="ocean-graphic-container">
-    <div class="ocean-text">
-        "Some survived by chance,<br>others by data."
+# ---- FIXED HEADER ----
+st.markdown("""
+<div class="fixed-nav">
+    <div class="nav-brand">&#9881; Survivor Compass</div>
+    <div class="nav-badge"><span>RMS Titanic &middot; 1912 Voyage Analysis</span></div>
+    <div class="nav-meta">
+        <span>Developed by <b>Bhagesh Biradar</b></span>
     </div>
 </div>
+""", unsafe_allow_html=True)
+
+# --- MODELS & DATA ---
+@st.cache_resource
+def load_assets():
+    if not os.path.exists('titanic_survival_model.pkl'): return None, None
+    try: model = joblib.load('titanic_survival_model.pkl')
+    except: model = None
+    try:
+        import kagglehub, glob
+        path = kagglehub.dataset_download("yasserh/titanic-dataset")
+        df = pd.read_csv(glob.glob(os.path.join(path, "*.csv"))[0])
+        df.columns = [c.lower() for c in df.columns]
+        df['sex'] = df['sex'].str.title()
+        df['embarked'] = df['embarked'].fillna('C').map({'C': 'Cherbourg', 'Q': 'Queenstown', 'S': 'Southampton'})
+    except: df = None
+    return model, df
+
+model, df = load_assets()
+
+import base64
+def get_image_base64(path):
+    if os.path.exists(path):
+        with open(path, "rb") as f:
+            return f"data:image/jpeg;base64,{base64.b64encode(f.read()).decode()}"
+    return ""
+
+img_b64 = get_image_base64("public/Image.jpeg")
+
+# --- SIDEBAR ---
+with st.sidebar:
+    st.markdown("""
+    <div class="sidebar-brand">🚢 Titanic Predictor</div>
+    <div class="nav-item">📊 Titanic EDA</div>
+    <div class="nav-item">🔍 Global Filters</div>
+    <div class="nav-item active">👤 Predict Fate</div>
+    <div class="nav-item">📈 Key Metrics</div>
+    <div class="nav-divider"></div>
     """, unsafe_allow_html=True)
-st.markdown("</div>", unsafe_allow_html=True)
-st.markdown("---")
 
-tab1, tab2 = st.tabs(["🚢 Survival Engine", "🌊 Data Deep-Dive"])
+# ---- TABS ----
+tab1, tab2 = st.tabs(["⚓  Survival Predictor", "📊  Analysis Dashboard"])
 
+# =====================================================================
+# TAB 1 - PREDICTOR
+# =====================================================================
 with tab1:
-    st.subheader("Passenger details")
-    
-    col_demo, col_journey = st.columns(2)
-    
-    with col_demo:
-        st.markdown("#### Passenger Demographics")
-        age = st.slider(label="Age (Years)", min_value=0.0, max_value=100.0, value=25.0, step=0.5)
-        sex = st.selectbox(label="Gender", options=['male', 'female'], index=0)
-        title = st.selectbox(label="Title", options=["Mr", "Miss", "Mrs", "Master", "Rare"], index=0)
-        
-    with col_journey:
-        st.markdown("#### Journey Details")
-        pclass = st.selectbox(label="Ticket Class", options=[1, 2, 3], index=2, format_func=lambda x: f"{x} Class")
-        fare = st.number_input(label="Fare Paid (£)", min_value=0.0, max_value=600.0, value=15.0, step=1.0)
-        embarked = st.selectbox(label="Embarked Port", options=["Southampton", "Cherbourg", "Queenstown"], index=0)
-        sibsp = st.number_input(label="Siblings / Spouses Aboard", min_value=0, max_value=10, value=0)
-        parch = st.number_input(label="Parents / Children Aboard", min_value=0, max_value=10, value=0)
-        has_cabin = st.selectbox(label="Assigned a Cabin?", options=["No", "Yes"], index=0)
-        
-    family_size = sibsp + parch + 1
+    col_in, col_out = st.columns([1, 1.4], gap="large")
 
-    predict_btn = st.button(label="Calculate Survival Probability", use_container_width=True)
+    with col_in:
+        st.markdown("### Passenger Demographics")
+        st.markdown('<div style="font-size:1rem;color:#64748b;margin-bottom:1rem;">Essential personal attributes</div>', unsafe_allow_html=True)
+        gender_in = st.radio("Sex", ["Male", "Female"], horizontal=True)
+        age_in = st.slider("Age (Years)", 0, 80, 30)
 
-    if predict_btn:
-        input_data = pd.DataFrame([{
-            'age': age,
-            'sex': sex,
-            'pclass': pclass,
-            'fare': fare,
-            'cabin': 1 if has_cabin == "Yes" else 0,
-            'FamilySize': family_size,
-            'Title': title
-        }])
-        
-        prediction = model.predict(input_data)[0]
-        probs = model.predict_proba(input_data)[0]
-        survive_pct = probs[1] * 100
-        
-        st.divider()
-        st.subheader("Model Assessment")
-        
-        r1, r2 = st.columns([1, 1])
-        
-        with r1:
-            outcome_text = "Survived" if prediction == 1 else "Perished"
-            outcome_class = "ticket-survived" if prediction == 1 else "ticket-perished"
-            
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        st.markdown("### Travel Details")
+        st.markdown('<div style="font-size:1rem;color:#64748b;margin-bottom:1rem;">Ticket and boarding information</div>', unsafe_allow_html=True)
+        pclass_in = st.selectbox("Ticket Class", [1, 2, 3], format_func=lambda x: f"{x}st Class — Upper" if x==1 else (f"{x}nd Class — Middle" if x==2 else f"{x}rd Class — Lower"))
+        fare_in = st.number_input("Fare Paid in GBP (£)", 0.0, 512.0, 32.0)
+        embarked_in = st.selectbox("Port of Embarkation", ["Cherbourg", "Queenstown", "Southampton"])
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        st.markdown("### Family Composition")
+        st.markdown('<div style="font-size:1rem;color:#64748b;margin-bottom:1rem;">Companions aboard</div>', unsafe_allow_html=True)
+        f1, f2 = st.columns(2)
+        with f1: sib_in = st.number_input("Siblings / Spouses", 0, 8, 0)
+        with f2: par_in = st.number_input("Parents / Children", 0, 9, 0)
+
+        st.markdown('<div class="predict-btn-wrap">', unsafe_allow_html=True)
+        predict_btn = st.button("Predict Fate")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    with col_out:
+        if "res_prob" not in st.session_state: st.session_state.res_prob = None
+
+        if predict_btn and model:
+            input_row = pd.DataFrame([{
+                'age': float(age_in), 'sex': gender_in.lower(), 'pclass': pclass_in,
+                'fare': float(fare_in), 'cabin': 1 if fare_in > 50 else 0,
+                'FamilySize': sib_in + par_in + 1, 'Title': 'Miss' if gender_in == 'Female' else 'Mr'
+            }])
+            st.session_state.res_prob = model.predict_proba(input_row)[0][1]
+
+        if st.session_state.res_prob is not None:
+            p = st.session_state.res_prob
+            survived = p > 0.5
+            verdict_text = "Survived" if survived else "Did Not Survive"
+
+            influences = []
+            if pclass_in == 3: influences.append("🎫 3rd Class Ticket (strong)")
+            elif pclass_in == 1: influences.append("🎫 1st Class Ticket (strong)")
+            if fare_in < 15: influences.append(f"💰 Low Fare £{fare_in:.2f} (moderate)")
+            elif fare_in > 50: influences.append(f"💰 High Fare £{fare_in:.2f} (moderate)")
+            influences.append(f"⚓ Embarked at {embarked_in.split()[0]} (minor)")
+            if sib_in + par_in > 3: influences.append("👨‍👩‍👧‍👦 Large family aboard (impact)")
+            elif sib_in + par_in == 0: influences.append("👤 Traveling alone (minor)")
+
+            influences_html = "<br>".join(influences)
+            rationale_html = ("The passenger's survival is highly likely due to prioritizing women and first-class passengers on lifeboats."
+                              if survived else
+                              "Low fare and 3rd class boarding are the most influential factors decreasing survival probability.")
+
+            html_str = f"""
+            <div class="bi-card" style="display:flex;gap:2rem;align-items:stretch;margin-bottom:1.5rem;">
+                <div style="flex:0 0 160px;display:flex;justify-content:center;align-items:center;">
+                    <img src="{img_b64}" style="width:100%;object-fit:contain;">
+                </div>
+                <div style="flex:1;display:flex;flex-direction:column;">
+                    <div style="font-size:1rem;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase;">Prediction Result</div>
+                    <div style="font-size:2.8rem;margin-bottom:0.5rem;color:{'#118a3d' if survived else '#cb3b3b'};font-weight:800;">
+                        {verdict_text} <span style="color:#ea580c;font-size:2.2rem;margin-left:10px;">{p*100:.0f}%</span>
+                    </div>
+                    <div style="font-size:1rem;color:#475569;margin-bottom:1.5rem;line-height:1.5;">
+                        <b>Model Rationale:</b> {rationale_html}
+                    </div>
+                    <div style="display:flex;gap:1rem;flex:1;">
+                        <div style="flex:1;background:#f8fafc;padding:1rem;border-radius:8px;border:1px solid #e2e8f0;">
+                            <div style="font-size:0.85rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase;">Confidence</div>
+                            <div style="font-size:1.4rem;font-weight:800;color:#0f172a;line-height:1.2;">
+                                {p*100:.0f}% chance of<br>survival
+                            </div>
+                        </div>
+                        <div style="flex:1.2;background:#f8fafc;padding:1rem;border-radius:8px;border:1px solid #e2e8f0;">
+                            <div style="font-size:0.85rem;font-weight:700;color:#64748b;margin-bottom:0.5rem;text-transform:uppercase;">Top Influences</div>
+                            <div style="font-size:0.95rem;color:#0f172a;line-height:1.4;font-weight:500;">{influences_html}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            """
+            html_str = "\n".join([line.strip() for line in html_str.split("\n")])
+            st.markdown(html_str, unsafe_allow_html=True)
+
+            col_out_1, col_out_2 = st.columns(2)
+
+            with col_out_1:
+                st.markdown("### Historic Rates by Passenger Class")
+                if df is not None:
+                    rates = df.groupby('pclass')['survived'].mean().reset_index()
+                    rates['label'] = (rates['survived'] * 100).round(1).astype(str) + '%'
+                    fig = px.bar(rates, x='pclass', y='survived', text='label', color_discrete_sequence=['#6b9bd2'])
+                    fig.update_traces(textposition='outside', textfont=dict(size=14, color='#0f172a'))
+                    fig.update_layout(height=270, margin=dict(l=0,r=0,t=10,b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)')
+                    fig.update_xaxes(title="", tickmode='array', tickvals=[1,2,3], ticktext=['1st','2nd','3rd'])
+                    fig.update_yaxes(title="", showgrid=False, showticklabels=False, range=[0,1.2])
+                    st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+
+            with col_out_2:
+                st.markdown("### Passenger Snapshot Vector")
+                vec_html = f"""
+                <div class="bi-card">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:1rem;margin-bottom:1rem;">
+                        <div>
+                            <div style="color:#64748b;font-size:0.85rem;font-weight:600;">Sex</div>
+                            <div style="font-weight:700;margin-bottom:0.5rem;color:#0f172a;">{gender_in}</div>
+                            <div style="color:#64748b;font-size:0.85rem;font-weight:600;">Age</div>
+                            <div style="font-weight:700;margin-bottom:0.5rem;color:#0f172a;">{age_in}</div>
+                            <div style="color:#64748b;font-size:0.85rem;font-weight:600;">Pclass</div>
+                            <div style="font-weight:700;margin-bottom:0.5rem;color:#0f172a;">{pclass_in}</div>
+                        </div>
+                        <div>
+                            <div style="color:#64748b;font-size:0.85rem;font-weight:600;">Fare</div>
+                            <div style="font-weight:700;margin-bottom:0.5rem;color:#0f172a;">£{fare_in:.2f}</div>
+                            <div style="color:#64748b;font-size:0.85rem;font-weight:600;">Embarked</div>
+                            <div style="font-weight:700;margin-bottom:0.5rem;color:#0f172a;">{embarked_in.split()[0]}</div>
+                            <div style="color:#64748b;font-size:0.85rem;font-weight:600;">SibSp / Parch</div>
+                            <div style="font-weight:700;margin-bottom:0.5rem;color:#0f172a;">{sib_in} / {par_in}</div>
+                        </div>
+                    </div>
+                    <div style="padding-top:1rem;border-top:2px solid #f1f5f9;font-size:0.9rem;color:#475569;">
+                        <div style="margin-bottom:0.5rem;font-weight:600;">Feature Vector (for model)</div>
+                        <div style="font-family:monospace;font-size:0.85rem;background:#f8fafc;padding:0.8rem;border-radius:6px;word-break:break-all;color:#0f172a;">
+                            [Sex:{0 if gender_in=='Male' else 1}, Age:{age_in}, Pclass:{pclass_in}, Fare:{fare_in}, Embarked:{embarked_in[0]}, SibSp:{sib_in}, Parch:{par_in}]
+                        </div>
+                    </div>
+                </div>
+                """
+                vec_html = "\n".join([line.strip() for line in vec_html.split("\n")])
+                st.markdown(vec_html, unsafe_allow_html=True)
+
+        else:
             st.markdown(f"""
-            <div class="ticket-box">
-                <h3 style='margin:0; color:#e2e8f0; font-size:1.1rem;'>Survival Assessment</h3>
-                <div class="ticket-value {outcome_class}">{survive_pct:.1f}<span style='font-size: 1.5rem; color:#94a3b8;'>%</span></div>
-                <p style='margin:0; font-size:1rem; color:#cbd5e1; font-weight:600;'>{outcome_text}</p>
+            <div class="bi-card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;opacity:0.45;min-height:400px;">
+                <img src="{img_b64}" width="200" style="margin-top:2rem;">
+                <p style="margin-top:2rem;font-weight:700;font-size:1.3rem;color:#0f172a;">Configure inputs and press "Predict Fate"</p>
             </div>
             """, unsafe_allow_html=True)
-        with r2:
-            st.markdown("#### Feature Importance")
-            st.caption("Key factors influencing this prediction")
-            
-            classifier = model.named_steps['classifier']
-            importances = classifier.feature_importances_
-            preprocessor = model.named_steps['preprocessor']
-            
-            try:
-                feature_names = preprocessor.get_feature_names_out()
-                clean_names = [name.split('__')[-1].title() for name in feature_names]
-                
-                imp_df = pd.DataFrame({'Factor': clean_names, 'Weight': importances}).sort_values('Weight', ascending=True)
-                
-                fig_bar = px.bar(imp_df, x='Weight', y='Factor', orientation='h', color_discrete_sequence=['#0ea5e9'])
-                fig_bar.update_traces(opacity=0.9, marker_line_width=0)
-                fig_bar.update_layout(
-                    template='plotly_dark',
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    margin=dict(l=0, r=0, t=10, b=0),
-                    height=280,
-                    xaxis=dict(showgrid=True, title=""),
-                    yaxis=dict(title="", showgrid=False)
-                )
-                st.plotly_chart(fig_bar, use_container_width=True)
-            except:
-                st.warning("Feature importance unavailable.")
 
+    st.divider()
+    st.markdown('<div style="text-align:center;padding:0.5rem 1rem;color:#64748b;font-size:1rem;">Developed by <b style="color:#001f3f;">Bhagesh Biradar</b></div>', unsafe_allow_html=True)
+
+
+# =====================================================================
+# TAB 2 - ANALYSIS DASHBOARD
+# =====================================================================
 with tab2:
-    if df is not None:
-        st.subheader("Dataset Analytics")
-        # --- ROW 1: KPI METRICS ---
-        st.markdown("#### High-Level Survivor Metrics")
-        kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-        
-        with kpi1:
-            st.metric(label="Total Passengers", value=f"{len(df):,}")
-        with kpi2:
-            overall_survival = df['survived'].mean() * 100
-            st.metric(label="Overall Survival Rate", value=f"{overall_survival:.1f}%")
-        with kpi3:
-            avg_fare = df['fare'].mean()
-            st.metric(label="Average Fare Paid", value=f"£{avg_fare:.2f}")
-        with kpi4:
-            avg_age = df['age'].mean()
-            st.metric(label="Average Age", value=f"{avg_age:.1f} yrs")
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # --- ROW 2: MAIN COMPARATIVES ---
-        col_main_left, col_main_right = st.columns([2, 1.2]) # 2/3 and 1/3 split
-        
-        with col_main_left:
-            # Checking out how Class and Gender impact survival rates together
-            st.markdown("#### Survival by Ticket Class & Gender")
-            surv_multi = df.groupby(['pclass', 'sex'])['survived'].mean().reset_index()
-            surv_multi['survived_pct'] = surv_multi['survived'] * 100
-            surv_multi['pclass_label'] = surv_multi['pclass'].map({1: '1st Class', 2: '2nd Class', 3: '3rd Class'})
-            surv_multi['sex_label'] = surv_multi['sex'].str.capitalize()
-            
-            fig_multi = px.bar(
-                surv_multi, x='pclass_label', y='survived_pct', color='sex_label', barmode='group',
-                color_discrete_map={'Female': '#0ea5e9', 'Male': '#818cf8'},
-                labels={'pclass_label': 'Ticket Class', 'survived_pct': 'Survival Rate %', 'sex_label': 'Gender'}
-            )
-            fig_multi.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=0, r=0, t=20, b=0),
-                height=350,
-                xaxis=dict(showgrid=False, title=""),
-                yaxis=dict(showgrid=False, title="Survival Probability (%)"),
-                legend=dict(title="")
-            )
-            st.plotly_chart(fig_multi, use_container_width=True)
-            
-        with col_main_right:
-            # Looking for correlations to see which numeric features drive survival the most
-            st.markdown("#### Feature Correlation")
-            corr_cols = ['survived', 'pclass', 'age', 'sibsp', 'parch', 'fare']
-            df_corr = df[corr_cols].dropna().corr()
-            
-            fig_corr = px.imshow(
-                df_corr, text_auto=".1f", aspect="auto",
-                color_continuous_scale="Teal_r", zmin=-1, zmax=1
-            )
-            fig_corr.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=350,
-                coloraxis_showscale=False,
-                xaxis=dict(tickangle=-45)
-            )
-            st.plotly_chart(fig_corr, use_container_width=True)
-            
-        st.markdown("<br>", unsafe_allow_html=True)
-        
-        # --- ROW 3: DISTRIBUTION DRILL-DOWNS ---
-        col_dist_left, col_dist_right = st.columns(2)
-        
-        with col_dist_left:
-            # Building a violin plot because I want to see the age distribution shapes between those who lived and died
-            st.markdown("#### Age Distribution by Outcome")
-            df_age = df.copy().dropna(subset=['age'])
-            df_age['Outcome'] = df_age['survived'].map({0: 'Perished', 1: 'Survived'})
-            
-            fig_violin = px.violin(
-                df_age, x='Outcome', y='age', color='Outcome', box=True, points="all",
-                color_discrete_map={'Perished': '#334155', 'Survived': '#0ea5e9'},
-                labels={'age': 'Age', 'Outcome': 'Status'}
-            )
-            fig_violin.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=300,
-                xaxis=dict(title="", showgrid=False),
-                yaxis=dict(showgrid=False),
-                showlegend=False
-            )
-            st.plotly_chart(fig_violin, use_container_width=True)
-            
-        with col_dist_right:
-            # Does having a bigger family help or hurt? Let's plot the average survival rate by family size
-            st.markdown("#### Survival by Family Size")
-            df_fam = df.copy()
-            df_fam['FamilySize'] = df_fam['sibsp'] + df_fam['parch'] + 1
-            
-            fam_agg = df_fam.groupby('FamilySize')['survived'].agg(['mean', 'sem']).reset_index()
-            fam_agg['mean_pct'] = fam_agg['mean'] * 100
-            
-            fig_fam = px.line(
-                fam_agg, x='FamilySize', y='mean_pct', markers=True,
-                labels={'FamilySize': 'Total Family Size', 'mean_pct': 'Survival Rate %'}
-            )
-            fig_fam.update_traces(line_color='#0ea5e9', marker=dict(size=8, color='#0ea5e9'))
-            fig_fam.update_layout(
-                template='plotly_dark',
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                margin=dict(l=0, r=0, t=10, b=0),
-                height=300,
-                xaxis=dict(showgrid=False, dtick=1),
-                yaxis=dict(showgrid=False)
-            )
-            st.plotly_chart(fig_fam, use_container_width=True)
-            
-    else:
-        st.warning("Historical dataset could not be loaded for graphics.")
+    st.markdown('<div class="page-title" style="font-size:2rem;font-weight:800;color:#0f172a;margin-bottom:0.3rem;">Survival Analysis Overview</div>', unsafe_allow_html=True)
+    st.markdown('<div style="font-size:1.1rem;color:#475569;margin-bottom:1.5rem;">Interactive dashboard visualizing Titanic survival patterns.</div>', unsafe_allow_html=True)
+    st.divider()
 
-st.markdown("<br>", unsafe_allow_html=True)
-st.markdown("""
-<div style="text-align: center; color: #718096; font-size: 0.85rem; padding: 10px;">
-    Developed by <strong>Bhagesh Biradar</strong>
-</div>
-""", unsafe_allow_html=True)
+    # Filters
+    if 'f_sex' not in st.session_state: st.session_state.f_sex = "All"
+    if 'f_pclass' not in st.session_state: st.session_state.f_pclass = "All"
+    if 'f_embarked' not in st.session_state: st.session_state.f_embarked = "All"
+
+    fcol1, fcol2, fcol3, fcol4, fcol5 = st.columns([1, 1, 1, 0.7, 1])
+    with fcol1: sex_filter = st.selectbox("Sex", ["All", "Male", "Female"], key="da_sex")
+    with fcol2: pclass_filter = st.selectbox("Class", ["All", "1st", "2nd", "3rd"], key="da_pclass")
+    with fcol3: embarked_filter = st.selectbox("Port", ["All", "Cherbourg", "Queenstown", "Southampton"], key="da_port")
+    with fcol4:
+        if st.button("Reset"):
+            st.rerun()
+
+    # Apply filters
+    df_filtered = df.copy() if df is not None else pd.DataFrame()
+    if not df_filtered.empty:
+        if sex_filter != "All": df_filtered = df_filtered[df_filtered['sex'] == sex_filter]
+        if pclass_filter != "All": df_filtered = df_filtered[df_filtered['pclass'] == int(pclass_filter[0])]
+        if embarked_filter != "All": df_filtered = df_filtered[df_filtered['embarked'] == embarked_filter]
+
+    # KPI Row
+    st.markdown("<br>", unsafe_allow_html=True)
+    kc1, kc2, kc3 = st.columns(3)
+    total_p = len(df_filtered) if not df_filtered.empty else 0
+    surv_rate = (df_filtered['survived'].mean() * 100) if not df_filtered.empty and len(df_filtered) > 0 else 0
+    avg_fare = df_filtered['fare'].mean() if not df_filtered.empty and len(df_filtered) > 0 else 0
+
+    with kc1:
+        st.markdown(f'<div class="metric-card"><div class="metric-title">Total Passengers</div><div class="metric-value">{total_p} 👥</div></div>', unsafe_allow_html=True)
+    with kc2:
+        st.markdown(f'<div class="metric-card"><div class="metric-title">Survival Rate</div><div class="metric-value" style="color:#118a3d !important;">{surv_rate:.1f}%</div></div>', unsafe_allow_html=True)
+    with kc3:
+        st.markdown(f'<div class="metric-card"><div class="metric-title">Average Fare</div><div class="metric-value">${avg_fare:.2f}</div></div>', unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    # Charts Row
+    ch1, ch2, ch3 = st.columns([1.2, 1, 1], gap="large")
+
+    with ch1:
+        st.markdown("### Survival Count by Sex & Class")
+        if not df_filtered.empty:
+            agg = df_filtered.groupby(['pclass', 'sex', 'survived']).size().reset_index(name='count')
+            agg['survived_str'] = agg['survived'].map({1: 'Survived', 0: 'Perished'})
+            agg['x_label'] = agg['pclass'].astype(str) + "cls " + agg['sex']
+            fig1 = px.bar(agg, x="x_label", y="count", color='survived_str',
+                         color_discrete_map={'Survived': '#118a3d', 'Perished': '#64748b'}, barmode='stack',
+                         text='count')
+            fig1.update_traces(textposition='inside', textfont=dict(size=12, color='white'))
+            fig1.update_layout(height=300, margin=dict(l=0,r=0,t=20,b=0), plot_bgcolor='rgba(0,0,0,0)',
+                               paper_bgcolor='rgba(0,0,0,0)', showlegend=True,
+                               legend=dict(orientation='h', yanchor='bottom', y=1.02, xanchor='right', x=1))
+            fig1.update_xaxes(showgrid=False, title="")
+            fig1.update_yaxes(showgrid=False, showticklabels=False, title="")
+            st.plotly_chart(fig1, use_container_width=True)
+
+        st.markdown("### Age Distribution by Survival")
+        if not df_filtered.empty and 'age' in df_filtered.columns:
+            fig2 = px.histogram(df_filtered.dropna(subset=['age']), x="age", color="survived",
+                                color_discrete_map={1: '#118a3d', 0: '#64748b'}, barmode="overlay",
+                                nbins=30)
+            fig2.update_layout(height=250, margin=dict(l=0,r=0,t=10,b=0), plot_bgcolor='rgba(0,0,0,0)',
+                               paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+            fig2.update_xaxes(showgrid=False, title="Age")
+            fig2.update_yaxes(showgrid=False, showticklabels=False, title="")
+            st.plotly_chart(fig2, use_container_width=True)
+
+    with ch2:
+        st.markdown("### Age vs Fare (Survival Colored)")
+        if not df_filtered.empty:
+            sc_df = df_filtered.dropna(subset=['age', 'fare']).copy()
+            sc_df['norm_age'] = sc_df['age'] - sc_df['age'].mean()
+            sc_df['norm_fare'] = sc_df['fare'] - sc_df['fare'].mean()
+            fig3 = px.scatter(sc_df, x="norm_age", y="norm_fare", color="survived",
+                              color_discrete_map={1: '#118a3d', 0: '#334155'}, opacity=0.65)
+            fig3.add_shape(type="line", x0=0, y0=-200, x1=0, y1=500, line=dict(color="#cbd5e1", width=2))
+            fig3.add_shape(type="line", x0=-50, y0=0, x1=50, y1=0, line=dict(color="#cbd5e1", width=2))
+            fig3.update_layout(height=350, margin=dict(l=0,r=0,t=10,b=0), plot_bgcolor='rgba(0,0,0,0)',
+                               paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+            fig3.update_xaxes(showgrid=False, showticklabels=False, title="Age (centered)")
+            fig3.update_yaxes(showgrid=False, showticklabels=False, title="Fare (centered)")
+            st.plotly_chart(fig3, use_container_width=True)
+
+        st.markdown("### Legend & Quick Stats")
+        if not df_filtered.empty:
+            s_c = len(df_filtered[df_filtered['survived']==1])
+            p_c = len(df_filtered[df_filtered['survived']==0])
+            s_age = df_filtered[df_filtered['survived']==1]['age'].median()
+            p_age = df_filtered[df_filtered['survived']==0]['age'].median()
+            s_fare = df_filtered[df_filtered['survived']==1]['fare'].median()
+            p_fare = df_filtered[df_filtered['survived']==0]['fare'].median()
+            st.markdown(f"""
+            <div class="bi-card">
+                <div style="margin-bottom:1rem;">
+                    <span style="color:#118a3d;font-weight:800;font-size:1.1rem;">● Survived:</span>
+                    <span style="font-weight:600;color:#0f172a;"> {s_c} passengers</span>
+                    <div style="color:#475569;font-size:0.95rem;margin-top:0.3rem;">Median Age: <b>{s_age:.0f}</b> | Median Fare: <b>${s_fare:.1f}</b></div>
+                </div>
+                <div>
+                    <span style="color:#64748b;font-weight:800;font-size:1.1rem;">● Perished:</span>
+                    <span style="font-weight:600;color:#0f172a;"> {p_c} passengers</span>
+                    <div style="color:#475569;font-size:0.95rem;margin-top:0.3rem;">Median Age: <b>{p_age:.0f}</b> | Median Fare: <b>${p_fare:.1f}</b></div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with ch3:
+        st.markdown("### Passenger Records")
+        if not df_filtered.empty:
+            disp = df_filtered[['passengerid', 'name', 'age', 'sex', 'pclass', 'fare']].copy()
+            disp['fare'] = disp['fare'].apply(lambda x: f"${x:.2f}")
+            disp['age'] = disp['age'].fillna("").apply(lambda x: f"{float(x):.0f}" if x != "" else "—")
+            disp.columns = ['ID', 'Name', 'Age', 'Sex', 'Pclass', 'Fare']
+            st.dataframe(disp, hide_index=True, use_container_width=True, height=640)
+
+    st.divider()
+    st.markdown('<div style="text-align:center;padding:0.5rem 1rem;color:#64748b;font-size:1rem;">Developed by <b style="color:#001f3f;">Bhagesh Biradar</b></div>', unsafe_allow_html=True)
