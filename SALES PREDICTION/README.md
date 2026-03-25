@@ -1,28 +1,40 @@
-# Sales Prediction Engine
+# Sales Prediction
 
-A business intelligence dashboard that forecasts sales revenue based on advertising budgets across TV, Radio, and Newspaper channels.
+Task 4 — predicting product sales based on advertising spend across TV, Radio and Newspaper channels. I used the ISLR Advertising dataset which is small (200 rows) but has a clear signal.
 
-## How it Works
-The engine uses a **Random Forest Regressor** to determine the ROI of various advertising combinations. It emphasizes the high correlation between TV spending and sales while showing the negligible impact of Newspaper ads.
+## What I built
 
-## Technologies Used
-- **Python**: Regression analysis.
-- **Streamlit**: "Sunset Analytics" themed UI with revenue gauges.
-- **Plotly**: Interactive indicator charts.
-- **Scikit-Learn**: High-precision modeling.
+An interactive budget planner where you adjust three sliders (TV, Radio, Newspaper budgets) and see the projected sales units update in real time, along with estimated ROI. There's also an analytics tab with scatter plots showing the relationship between each channel and sales, a correlation heatmap, and feature importance bars.
 
-## How to Run
-1. Install dependencies:
-   ```bash
-   pip install streamlit pandas scikit-learn joblib plotly
-   ```
-2. Train the model:
-   ```bash
-   python sales_model.py
-   ```
-3. Run the application:
-   ```bash
-   streamlit run app.py
-   ```
+## Findings
 
-Developed by **Bhagesh Biradar**
+The most interesting thing this model reveals is how little Newspaper advertising actually matters. TV has by far the strongest correlation with sales (~0.78) while Newspaper is nearly irrelevant (~0.23). Radio is a decent secondary channel. The model picks this up clearly from feature importances.
+
+I tried Linear Regression first which gave decent results (R² ~0.9) but Random Forest pushed it higher and handles any non-linear patterns better. I did a basic grid search to tune the number of estimators and max depth.
+
+## Stack
+
+- Python + Scikit-learn + Pandas
+- Streamlit
+- Plotly (gauge chart, scatter plots, heatmap)
+
+## Running it
+
+```
+pip install streamlit pandas scikit-learn joblib plotly
+```
+
+Train:
+```
+python sales_model.py
+```
+
+Run:
+```
+streamlit run app.py
+```
+
+Budget sliders go live as soon as the app loads — no button needed.
+
+---
+Bhagesh Biradar | CODESOFT Internship Task 4

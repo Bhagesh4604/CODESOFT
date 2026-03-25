@@ -1,33 +1,50 @@
-# Cyber-Sentinel | Credit Card Fraud Protection
+# Credit Card Fraud Detection
 
-A mission-critical security dashboard that monitors and identifies fraudulent credit card transactions using weighted random forest heuristics.
+Task 5 and probably the most challenging one. The actual Kaggle dataset (mlg-ulb/creditcardfraud) is 144MB so I couldn't include it, but I generated a synthetic dataset that matches its structure — 50,000 transactions with ~0.2% fraud rate — using the same PCA feature format (V1-V28).
 
-## How it Works
-Due to the extreme rarity of fraudulent transactions, this project utilizes **RandomOverSampler** (similar to SMOTE) to ensure the model detects malicious signatures effectively. The system is trained on a high-fidelity synthetic dataset mimicking the `mlg-ulb/creditcardfraud` PCA structure (V1-V28 vectors).
+## The problem
 
-## Key Features
-- **Tactical UI/UX:** Dark-mode security terminal with Matrix green/Red status alerts.
-- **Deep-Scan Animation:** Simulated packet inspection during transaction processing.
-- **Risk Assessment:** Real-time probability scoring and verdict console.
+Credit card fraud detection is tricky because the dataset is *extremely* imbalanced. Less than 0.2% of transactions are fraud. If you just train a model on raw data it'll predict "not fraud" for everything and still get 99.8% accuracy — which is totally useless.
 
-## Technologies Used
-- **Python**: Scalable machine learning and data simulation.
-- **Streamlit**: Advanced CSS-customized tactical dashboard.
-- **Scikit-Learn**: Robust classification logic.
-- **Imbalanced-Learn**: Handling extreme class skewness.
+## How I solved it
 
-## How to Run
-1. Install dependencies:
-   ```bash
-   pip install streamlit pandas scikit-learn joblib imbalanced-learn
-   ```
-2. Initialize security assets:
-   ```bash
-   python fraud_model.py
-   ```
-3. Boot the Cyber-Sentinel core:
-   ```bash
-   streamlit run app.py
-   ```
+I used RandomOverSampler from the imbalanced-learn library to oversample the fraud cases in the training set. This gives the model enough examples of fraud to actually learn what distinguishes them.
 
-Developed by **Bhagesh Biradar**
+The features V1–V28 are already PCA-transformed (the original dataset is anonymised for privacy), so I just needed to scale the Amount and Time columns using RobustScaler (better than StandardScaler for financial data with outliers).
+
+Model: Random Forest Classifier with 50 trees, max depth 10. Gets around F1 ~0.89 on the test split.
+
+## What the app does
+
+- You enter or load sample PCA feature vectors for a transaction
+- The model gives an instant verdict (FRAUD or CLEARED) with a probability score
+- There's a custom polar risk dial that visually shows threat level
+- Analytics tab has feature importance chart, scatter plots, violin plots for distribution comparison
+
+## Stack
+
+- Python + Scikit-learn + imbalanced-learn
+- Streamlit
+- Plotly
+- Numpy + Pandas
+
+## Running it
+
+```
+pip install streamlit pandas scikit-learn imbalanced-learn joblib plotly
+```
+
+Generate the synthetic data and train the model:
+```
+python fraud_model.py
+```
+
+Run the app:
+```
+streamlit run app.py
+```
+
+The model takes about a minute to train because of the oversampling step.
+
+---
+Bhagesh Biradar | CODESOFT Internship Task 5

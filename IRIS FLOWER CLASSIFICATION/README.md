@@ -1,27 +1,43 @@
 # Iris Flower Classification
 
-A scientific classification engine that identifies iris flower species (Setosa, Versicolor, Virginica) based on petal and sepal measurements.
+Task 3 — the classic Iris dataset. I know it's a basic one but I wanted to make the interface as interactive as possible rather than just running a notebook and showing results.
 
-## How it Works
-This project uses a **Random Forest Classifier** to distinguish between the three species. The app uses **Streamlit Session State** to provide an instant, "live-updating" prediction experience as you manipulate the sliders.
+## What I built
 
-## Technologies Used
-- **Python**: Classification logic.
-- **Streamlit**: "Botanical Glassmorphic" user interface.
-- **Scikit-Learn**: Feature scaling and classification.
+A live classification app where sliders for sepal/petal measurements instantly update the predicted species without needing to click a "predict" button. I also added a radar chart showing how the input measurements compare to the average profile of each species, and scatter plots of the dataset colored by species.
 
-## How to Run
-1. Install dependencies:
-   ```bash
-   pip install streamlit pandas scikit-learn joblib
-   ```
-2. Train the model:
-   ```bash
-   python iris_model.py
-   ```
-3. Launch the app:
-   ```bash
-   streamlit run app.py
-   ```
+## Model
 
-Developed by **Bhagesh Biradar**
+Random Forest Classifier trained on Fisher's Iris dataset (150 samples, 4 features, 3 classes). With enough trees and a proper train/test split the accuracy is basically 96-100% on this dataset — it's not a hard classification problem since the species are fairly well separated in feature space (except Versicolor and Virginica which have some overlap in sepal dimensions).
+
+I used StandardScaler before training since the feature ranges are slightly different.
+
+## Live prediction
+
+The way Streamlit session state works is that slider changes trigger a rerun of the whole script, so I just compute the prediction at the top level every time the script runs rather than inside a button click. This gives the "live" feel.
+
+## Stack
+
+- Python + Scikit-learn
+- Streamlit (with session state for live sliders)
+- Plotly (scatter plots, radar chart, box plots)
+
+## Running it
+
+Install deps:
+```
+pip install streamlit pandas scikit-learn joblib plotly
+```
+
+Train (fast, takes ~5 seconds):
+```
+python iris_model.py
+```
+
+Run:
+```
+streamlit run app.py
+```
+
+---
+Bhagesh Biradar | CODESOFT Internship Task 3
