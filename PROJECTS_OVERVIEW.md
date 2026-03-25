@@ -17,7 +17,7 @@ This document summarizes the four analytical projects completed during the Data 
     *   `Pclass`: 1st Class
     *   `Fare`: £71.28
 *   **How it Works:** The model identifies correlations between demographic features and survival. For example, it learned that women and children in higher classes had significantly higher survival rates, allowing it to predict destiny for new inputs.
-*   **Aesthetic:** "Dark Ocean" (Deep navy and teal UI).
+*   **Aesthetic:** "Modern Minimalist Nautical" (Clean light-themed UI with multi-column layouts and structured results).
 
 ---
 

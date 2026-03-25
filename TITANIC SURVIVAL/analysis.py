@@ -276,18 +276,68 @@ with col_left:
     st.markdown("<br>", unsafe_allow_html=True)
     st.markdown("### Age Distribution by Survival")
     if not df_filtered.empty and 'age' in df_filtered.columns:
-        fig2 = px.histogram(df_filtered.dropna(subset=['age']), x="age", color="survived",
-                            color_discrete_map={1: '#118a3d', 0: '#64748b'},
-                            barmode="overlay")
+        age_df = df_filtered.dropna(subset=['age']).copy()
+        age_df['Survival Status'] = age_df['survived'].map({1: 'Survived', 0: 'Perished'})
+
+        fig2 = px.histogram(
+            age_df, x="age",
+            color="Survival Status",
+            color_discrete_map={'Survived': '#118a3d', 'Perished': '#94a3b8'},
+            barmode="overlay",
+            nbins=30,
+            opacity=0.75,
+            labels={"age": "Age", "count": "Passengers"},
+            title=""
+        )
+        fig2.update_traces(marker_line_width=0.5, marker_line_color='white')
         fig2.update_layout(
-            margin=dict(l=0, r=0, t=20, b=0),
-            height=280,
-            xaxis_title="Age",
-            yaxis_title="Density",
-            bargap=0.1,
-            showlegend=False,
+            margin=dict(l=0, r=0, t=10, b=0),
+            height=300,
+            xaxis_title="Age (years)",
+            yaxis_title="Passenger Count",
+            bargap=0.05,
+            showlegend=True,
+            legend=dict(
+                title="",
+                orientation="h",
+                yanchor="top",
+                y=0.98,
+                xanchor="right",
+                x=0.99,
+                bgcolor='rgba(255,255,255,0.8)',
+                bordercolor='#e2e8f0',
+                borderwidth=1,
+                font=dict(size=12)
+            ),
             plot_bgcolor='rgba(0,0,0,0)',
-            paper_bgcolor='rgba(0,0,0,0)'
+            paper_bgcolor='rgba(0,0,0,0)',
+            xaxis=dict(
+                showgrid=True,
+                gridcolor='#f1f5f9',
+                tickfont=dict(size=11),
+                title_font=dict(size=12, color='#475569')
+            ),
+            yaxis=dict(
+                showgrid=True,
+                gridcolor='#f1f5f9',
+                tickfont=dict(size=11),
+                title_font=dict(size=12, color='#475569')
+            )
+        )
+        # Add vertical mean-age annotations
+        survived_mean = age_df[age_df['survived'] == 1]['age'].mean()
+        perished_mean = age_df[age_df['survived'] == 0]['age'].mean()
+        fig2.add_vline(
+            x=survived_mean, line_dash="dot", line_color='#118a3d', line_width=2,
+            annotation_text=f"Survived μ={survived_mean:.0f}y",
+            annotation_position="top right",
+            annotation_font=dict(color='#118a3d', size=11)
+        )
+        fig2.add_vline(
+            x=perished_mean, line_dash="dot", line_color='#64748b', line_width=2,
+            annotation_text=f"Perished μ={perished_mean:.0f}y",
+            annotation_position="top left",
+            annotation_font=dict(color='#64748b', size=11)
         )
         st.plotly_chart(fig2, use_container_width=True)
 

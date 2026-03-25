@@ -479,14 +479,39 @@ with tab2:
             st.plotly_chart(fig1, use_container_width=True)
 
         st.markdown("### Age Distribution by Survival")
+        st.markdown('<div style="font-size:0.9rem;color:#64748b;margin-bottom:0.5rem;">Passenger count by age group — green = survived, gray = perished</div>', unsafe_allow_html=True)
         if not df_filtered.empty and 'age' in df_filtered.columns:
-            fig2 = px.histogram(df_filtered.dropna(subset=['age']), x="age", color="survived",
-                                color_discrete_map={1: '#118a3d', 0: '#64748b'}, barmode="overlay",
-                                nbins=30)
-            fig2.update_layout(height=250, margin=dict(l=0,r=0,t=10,b=0), plot_bgcolor='rgba(0,0,0,0)',
-                               paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
-            fig2.update_xaxes(showgrid=False, title="Age")
-            fig2.update_yaxes(showgrid=False, showticklabels=False, title="")
+            age_df2 = df_filtered.dropna(subset=['age']).copy()
+            age_df2['Survival Status'] = age_df2['survived'].map({1: 'Survived', 0: 'Perished'})
+            fig2 = px.histogram(
+                age_df2, x="age",
+                color="Survival Status",
+                color_discrete_map={'Survived': '#118a3d', 'Perished': '#94a3b8'},
+                barmode="overlay",
+                nbins=30,
+                opacity=0.78,
+                labels={"age": "Age (years)", "count": "Passengers"}
+            )
+            fig2.update_traces(marker_line_width=0.4, marker_line_color='white')
+            fig2.update_layout(
+                height=280,
+                margin=dict(l=0, r=0, t=20, b=0),
+                plot_bgcolor='rgba(0,0,0,0)',
+                paper_bgcolor='rgba(0,0,0,0)',
+                showlegend=True,
+                legend=dict(
+                    title="",
+                    orientation="h",
+                    yanchor="top", y=0.99,
+                    xanchor="right", x=0.99,
+                    bgcolor='rgba(255,255,255,0.85)',
+                    bordercolor='#e2e8f0', borderwidth=1,
+                    font=dict(size=11)
+                )
+            )
+            fig2.update_xaxes(title="Age (years)", showgrid=True, gridcolor='#f1f5f9', tickfont=dict(size=11))
+            fig2.update_yaxes(title="Passenger Count", showgrid=True, gridcolor='#f1f5f9',
+                              showticklabels=True, tickfont=dict(size=11))
             st.plotly_chart(fig2, use_container_width=True)
 
     with ch2:
